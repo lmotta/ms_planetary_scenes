@@ -41,6 +41,7 @@ from ipywidgets import (
     HBox, VBox,
     IntProgress, IntSlider,
     Dropdown, SelectionSlider, SelectMultiple,
+    Play,
     DatePicker,
     FileUpload
 )
@@ -476,15 +477,26 @@ class ScenesDateControl():
         
         # Control, Create in add
         self.w_dates = Label('')
+        self.w_play = Play(
+            value=0,
+            min=0,
+            max=0,
+            step=1,
+            interval=1500, # Miliseconds
+            description="Press play",
+            disabled=True
+        )
+        self.w_play.observe( self.on_observe_play, names='value')
+        self.skip_play = False # Twice call
         self.w_selection = SelectionSlider(
             options=[''],
             value='',
             description='Scenes:',
             readout=False            
         )
-        self.w_selection.observe( self.on_observe, names='value')
+        self.w_selection.observe( self.on_observe_selection, names='value')
         self.w_order = Label('')
-        self.w_ = HBox( [ self.w_dates, self.w_selection, self.w_order ] )
+        self.w_ = HBox( [ self.w_dates, self.w_play, self.w_selection, self.w_order ] )
         self.control = WidgetControl( widget=self.w_, position=position )
         self.w_selection.disabled = True
         self.map.controls = ( self.control, *self.map.controls ) # Add top control_date
@@ -521,12 +533,15 @@ class ScenesDateControl():
                 self.date_items[ k ] = date_scenes[ k ]
         
         self.w_selection.disabled = False
+        self.w_play.disabled = False
         toDatesItem()
         dates = list( self.date_items.keys() )
         self.w_dates.value = f"{dates[0]}/{dates[-1]} ({len( dates )} dates)"
         self.w_selection.options = dates
         self.w_selection.value = dates[0]
-        self.on_observe( { 'new': dates[0] } )
+        #self.on_observe( { 'new': dates[0] } )
+        self.w_play.max = len( dates ) - 1
+        self.w_play.value = 0
 
     def remove(self):
         self._removeLayersSceneDate()
@@ -536,13 +551,22 @@ class ScenesDateControl():
         for w in ( self.w_dates, self.w_order):
             w.value = ''
         self.w_selection.disabled = True
+        self.w_play.disabled = True
 
-    def on_observe(self, change):
+    def on_observe_play(self, change):
+        if self.skip_play:
+            self.skip_play = False
+            return
+            
+        self.w_selection.value = self.w_selection.options[ change.new ]
+        self.skip_play = True
+
+    def on_observe_selection(self, change):
         def tableHtml():
             html = f"{self.style_table}<table>"
-            html += UtilScenes.htmlRows( [ f"{len( self.date_items[ change['new'] ] )} scenes ({change['new']})" ],'th', self.id_element_table )
+            html += UtilScenes.htmlRows( [ f"{len( self.date_items[ change.new ] )} scenes ({change.new})" ],'th', self.id_element_table )
             html += UtilScenes.htmlRows( ['Id', 'Urls' ],'th', self.id_element_table )
-            for item in self.date_items[ change['new'] ]:
+            for item in self.date_items[ change.new ]:
                 links = '<br>'.join( UtilScenes.linksUrlBand( item, self.id_element_table ) )
                 html +=  UtilScenes.htmlRows( [ item.scene, links ],'td', self.id_element_table )
             html += '</table>'
@@ -557,12 +581,12 @@ class ScenesDateControl():
 
         # Control Scenes date 
         # .) Position
-        idx = list( self.date_items.keys() ).index( change['new'] )
-        self.w_order.value = f"{change['new']} ({idx+1}º)"
+        idx = list( self.date_items.keys() ).index( change.new )
+        self.w_order.value = f"{change.new} ({idx+1}º)"
 
         #.) Add layers (map) and names (tooltip)
         names = []
-        for item in self.date_items[ change['new'] ]:
+        for item in self.date_items[ change.new ]:
             layer = TileLayer(name=item.scene, url=item.url_tile, attribution='Microsoft Planetary Computer')
             self.layers.append( layer )
             self.map.add( layer )
@@ -660,12 +684,12 @@ class MagnifyingGlassLayer():
         if self.layer in self.map.layers:
             self.map.remove( self.layer )
         
-        if self.no_source == change['new']:
+        if self.no_source == change.new:
             self.layer = None
             self.w_zoom.disabled = True
             return
 
-        self._addLayer( change['new'], self.w_zoom.value )
+        self._addLayer( change.new, self.w_zoom.value )
         self.w_zoom.disabled = False
                        
     def on_observe_zoom(self, change):
@@ -674,7 +698,7 @@ class MagnifyingGlassLayer():
         
         if self.layer in self.map.layers:
             self.map.remove( self.layer )
-        self._addLayer( self.w_sources.value, change['new'] )
+        self._addLayer( self.w_sources.value, change.new )
 
 
 class ProcessScenes():
