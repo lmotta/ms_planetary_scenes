@@ -501,9 +501,7 @@ class ScenesDateControl():
         self.map.controls = ( self.control, *self.map.controls ) # Add top control_date
 
     def _removeLayersSceneDate(self):
-        for layer in self.layers:
-            if layer in self.map.layers:
-                self.map.remove( layer )
+        self.map.layers = ( self.map.layers[0], ) # Only basemap
         self.layers.clear()
 
     def add(self, scenes):
@@ -570,22 +568,24 @@ class ScenesDateControl():
         if self.date_items is None:
             return
 
-        # Clean last layers
-        self._removeLayersSceneDate()
-
         # Control Scenes date 
         # .) Position
         idx = list( self.date_items.keys() ).index( change.new )
         self.w_order.value = f"{change.new} ({idx+1}º)"
 
-        #.) Add layers (map) and names (tooltip)
+        #.) Populate new layers and names (tooltip)
         names = []
+        layers = []
         for item in self.date_items[ change.new ]:
             layer = TileLayer(name=item.scene, url=item.url_tile, attribution='Microsoft Planetary Computer')
-            self.layers.append( layer )
-            self.map.add( layer )
+            layers.append( layer )
+            #self.map.add( layer )
             names.append( item.scene )
-
+        
+        # Clean last layers and populate new layers
+        self.layers = layers
+        self.map.layers = tuple( [ self.map.layers[0] ] + self.layers )
+            
         msg = '\n'.join( names )
         self.w_selection.description_tooltip = f"{msg}"
 
