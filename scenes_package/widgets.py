@@ -69,7 +69,6 @@ def widgetPrevfogo():
     logo_prevfogo = Image(
         value=open('./resources/prev-fogo-logo.png', 'rb').read(),
         format='png',
-        width=75, height=100,
     )
     return HBox( [ logo_prevfogo, htmlDescription() ] )
 
