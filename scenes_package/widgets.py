@@ -482,12 +482,11 @@ class ScenesDateControl():
             min=0,
             max=0,
             step=1,
-            interval=1500, # Miliseconds
+            interval=2000, # Miliseconds
             description="Press play",
             disabled=True
         )
         self.w_play.observe( self.on_observe_play, names='value')
-        self.skip_play = False # Twice call
         self.w_selection = SelectionSlider(
             options=[''],
             value='',
@@ -554,12 +553,7 @@ class ScenesDateControl():
         self.w_play.disabled = True
 
     def on_observe_play(self, change):
-        if self.skip_play:
-            self.skip_play = False
-            return
-            
         self.w_selection.value = self.w_selection.options[ change.new ]
-        self.skip_play = True
 
     def on_observe_selection(self, change):
         def tableHtml():
