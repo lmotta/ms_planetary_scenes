@@ -696,6 +696,7 @@ class MagnifyingGlassLayer():
 
 
 class ProcessScenes():
+
     def __init__(self, map_, w_output ):
         self.map = map_
         self.w_output_progress = w_output

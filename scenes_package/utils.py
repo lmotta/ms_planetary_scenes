@@ -103,8 +103,8 @@ class UtilScenes(object):
         Return: geojson
         """
         feat = lambda item: geojson.Feature( geometry=item.geometry, properties={ 'scene': item.scene } )
-        features =  [ feat( item ) for item in scenes.values() ] if not len( ids ) else \
-                    [ feat( item ) for item in scenes.values() if item.scene in ids ]
+        features =  [ feat( item ) for item in scenes ] if not len( ids ) else \
+                    [ feat( item ) for item in scenes if item.scene in ids ]
         
         return {
             'name': name,
