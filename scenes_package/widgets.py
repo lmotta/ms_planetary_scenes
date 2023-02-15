@@ -482,7 +482,7 @@ class ScenesDateControl():
             min=0,
             max=0,
             step=1,
-            interval=1000, # Miliseconds
+            interval=2000, # Miliseconds
             description="Press play",
             disabled=True
         )
