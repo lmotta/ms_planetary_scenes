@@ -482,7 +482,7 @@ class ScenesDateControl():
             min=0,
             max=0,
             step=1,
-            interval=2000, # Miliseconds
+            interval=1000, # Miliseconds
             description="Press play",
             disabled=True
         )
@@ -501,7 +501,9 @@ class ScenesDateControl():
         self.map.controls = ( self.control, *self.map.controls ) # Add top control_date
 
     def _removeLayersSceneDate(self):
-        self.map.layers = ( self.map.layers[0], ) # Only basemap
+        for layer in self.layers:
+            if layer in self.map.layers:
+                self.map.remove( layer )
         self.layers.clear()
 
     def add(self, scenes):
@@ -579,12 +581,10 @@ class ScenesDateControl():
         for item in self.date_items[ change.new ]:
             layer = TileLayer(name=item.scene, url=item.url_tile, attribution='Microsoft Planetary Computer')
             layers.append( layer )
-            #self.map.add( layer )
+            self.map.add( layer )
             names.append( item.scene )
-        
-        # Clean last layers and populate new layers
+        self._removeLayersSceneDate()
         self.layers = layers
-        self.map.layers = tuple( [ self.map.layers[0] ] + self.layers )
             
         msg = '\n'.join( names )
         self.w_selection.description_tooltip = f"{msg}"
