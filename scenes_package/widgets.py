@@ -397,7 +397,7 @@ class UploadGeojson():
 
 
 class DrawControlRectangle():
-    def __init__(self, map_, position):
+    def __init__(self, map_, position, button):
         def createControl():
             control = DrawControl(position=position)
             control.edit, control.remove = False, False
@@ -414,6 +414,7 @@ class DrawControlRectangle():
             control.on_draw( self.on_draw )
             return control
         
+        self.button = button
         self._geometry = None
         map_.add( createControl() )
         
@@ -430,7 +431,8 @@ class DrawControlRectangle():
 
         self._geometry = geo_json['geometry']
         changeStyle()
-        
+        self.button.disabled = False
+
     @property
     def geometry(self):
         return self._geometry
@@ -705,14 +707,38 @@ class ProcessScenes():
         collections_assets = { 'landsat-c2-l2': ['red', 'green', 'blue'], 'sentinel-2-l2a': ['visual'] }
         self.search = SearchScenes( collections_assets )
 
+        # Search
+        self.w_date_end = DatePicker(description='End date')
+        self.w_date_end.value = datetime.today().date()
+
+        self.w_date_ini = DatePicker(description='Initial date')
+        self.w_date_ini.value = self.w_date_end.value - timedelta(days=30)
+
+        self.w_collections = SelectMultiple(
+            options=self.search.collections,
+            description='Collections',
+            disabled=False
+        )
+        self.w_collections.value = [ self.search.collections[0] ]
+        
+        self.w_button = Button(
+            description='Search scenes',
+            disabled=True,
+            button_style='',
+            icon='satellite-dish'
+        )
+        self.w_button.on_click( self._on_click )
+        def enabled():
+            self.w_button.disable = False 
+        
         #.) Styles Tables Scenes
         id_element_table = 'scenes'
         html = '#{ELEMENT}_row { color: #6F9BF3; border-style:solid; border-color: #B6B5B8; }'.replace('{ELEMENT}', id_element_table)
         style_table = f"<style>{html} {UtilScenes.styleLinkHtml( id_element_table )}</style>"
 
         # .) Controls
+        self.draw_control = DrawControlRectangle( map_, 'topleft',  self.w_button )
         self.control_date = ScenesDateControl( map_, 'topleft', style_table, id_element_table )
-        self.draw_control = DrawControlRectangle( map_, 'topleft' )
         map_.add( FullScreenControl() ) # 'topleft'
         map_.add( SearchControl(
             position="topleft", zoom=10, auto_collapse=True,
@@ -743,28 +769,6 @@ class ProcessScenes():
             self.w_html_date_table, self.w_html_error_table
         )
         UtilScenes.toggleLayoutDisplay( widgets, False )
-        
-        # Search
-        self.w_date_end = DatePicker(description='End date')
-        self.w_date_end.value = datetime.today().date()
-
-        self.w_date_ini = DatePicker(description='Initial date')
-        self.w_date_ini.value = self.w_date_end.value - timedelta(days=30)
-
-        self.w_collections = SelectMultiple(
-            options=self.search.collections,
-            description='Collections',
-            disabled=False
-        )
-        self.w_collections.value = [ self.search.collections[0] ]
-        
-        self.w_button = Button(
-            description='Search scenes',
-            disabled=False,
-            button_style='',
-            icon='satellite-dish'
-        )
-        self.w_button.on_click( self._on_click )
         
         self.w_html_result_search = HTML()
 
