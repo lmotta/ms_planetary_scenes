@@ -585,9 +585,10 @@ class ScenesDateControl():
             layers_scenes.append( layer )
             names.append( item.scene )
         
-        # Change layers map, layers_not_scene[0] = Basemap
-        layers_not_scene = [ layer for layer in self.map.layers if not layer in self.layers ]
-        self.map.layers = [ layers_not_scene[0] ] + layers_scenes + layers_not_scene[1:]
+        # Change layers map
+        layers_base = [ layer for layer in self.map.layers if layer.base ]
+        layers_not_scene = [ layer for layer in self.map.layers if not layer.base and not layer in self.layers ]
+        self.map.layers = layers_base + layers_scenes + layers_not_scene
         self.layers = layers_scenes # Update new scenes
             
         msg = '\n'.join( names )
