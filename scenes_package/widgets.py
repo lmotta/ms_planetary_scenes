@@ -579,14 +579,16 @@ class ScenesDateControl():
 
         #.) Populate new layers and names (tooltip)
         names = []
-        layers = []
+        layers_scenes = [] # New
         for item in self.date_items[ change.new ]:
             layer = TileLayer(name=item.scene, url=item.url_tile, attribution='Microsoft Planetary Computer')
-            layers.append( layer )
-            self.map.add( layer )
+            layers_scenes.append( layer )
             names.append( item.scene )
-        self._removeLayersSceneDate()
-        self.layers = layers
+        
+        # Change layers map, layers_not_scene[0] = Basemap
+        layers_not_scene = [ layer for layer in self.map.layers if not layer in self.layers ]
+        self.map.layers = [ layers_not_scene[0] ] + layers_scenes + layers_not_scene[1:]
+        self.layers = layers_scenes # Update new scenes
             
         msg = '\n'.join( names )
         self.w_selection.description_tooltip = f"{msg}"
