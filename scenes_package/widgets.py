@@ -503,9 +503,7 @@ class ScenesDateControl():
         self.map.controls = ( self.control, *self.map.controls ) # Add top control_date
 
     def _removeLayersSceneDate(self):
-        for layer in self.layers:
-            if layer in self.map.layers:
-                self.map.remove( layer )
+        self.map.layers = [ layer for layer in self.map.layers if not layer in self.layers ]
         self.layers.clear()
 
     def add(self, scenes):
@@ -587,8 +585,8 @@ class ScenesDateControl():
         
         # Change layers map
         layers_base = [ layer for layer in self.map.layers if layer.base ]
-        layers_not_scene = [ layer for layer in self.map.layers if not layer.base and not layer in self.layers ]
-        self.map.layers = layers_base + layers_scenes + layers_not_scene
+        layers_not_base_scene = [ layer for layer in self.map.layers if not layer.base and not layer in self.layers ]
+        self.map.layers = layers_base + layers_scenes + layers_not_base_scene
         self.layers = layers_scenes # Update new scenes
             
         msg = '\n'.join( names )
