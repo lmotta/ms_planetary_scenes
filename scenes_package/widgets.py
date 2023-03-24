@@ -30,7 +30,7 @@ from threading import Thread
 import json
 from datetime import datetime, timedelta
 
-from shapely.geometry import shape
+from shapely.geometry import shape, box
 from shapely.affinity import scale
 
 
@@ -228,7 +228,7 @@ class ProgressThread():
         return self.w_widget
 
 
-class UploadGeojson():
+class UploadGeojsonUnitPopup():
     def __init__(self, map_, control_coordinate, w_output):
         def upload():
             widget = FileUpload()
@@ -352,6 +352,8 @@ class UploadGeojson():
         self.w_fields.disabled = False
         self.escape_dropdown = False
         
+        self.map.fit_bounds( [ (miny, minx), (maxy, maxx) ] )
+        
         self.w_output.clear_output()
 
     def on_observe_fields(self, change):
@@ -393,6 +395,134 @@ class UploadGeojson():
 
     def on_click_remove(self, btn):
         self.geojson_search.clear()
+        btn.disabled = True
+
+
+class UploadGeojson():
+    def __init__(self, map_, w_output):
+        def upload():
+            widget = FileUpload()
+            args = {
+                'description': 'Upload Geojson (WGS 84 - EPSG 4326)',
+                'accept': '.geojson',
+                'multiple': False
+            }
+            widget = FileUpload( **args )
+            widget.layout = Layout(width='300px')
+            return widget
+
+        def buttonRemove():
+            widget = Button(
+                description='Remove Geojson',
+                disabled=True,
+                icon='minus-square'
+            )
+            return widget
+        
+        def control():
+            return SearchControl(
+                position=position,
+                layer=LayerGroup( layers=() ),
+                zoom=4,
+                auto_collapse=True,
+                property_name=''
+            )
+        
+        self.map = map_
+        self.w_output = w_output
+        
+        self.w_message = HTML()
+        
+        self.w_upload = upload()
+        self.w_upload.observe( self.on_observe_upload, names='value' )
+        self.load_json = False
+        
+        self.layer = None
+
+        self.w_remove = buttonRemove()
+        self.w_remove.on_click( self.on_click_remove )
+        
+    def _clear(self):
+            self.w_upload.data.clear()
+            self.w_upload.metadata.clear()
+            self.w_upload._counter = 0
+            if not self.layer is None:
+                self.map.remove( self.layer )
+                self.layer.data.clear()
+                self.layer = None
+            self.w_remove.disabled = True
+        
+    @property
+    def widget(self):
+        return HBox( [ self.w_upload, self.w_remove ] )
+
+    def on_observe_upload(self, change):
+        def zoom_layer():
+            def bounds(idx):
+                ( minx, miny, maxx, maxy ) = shape( self.layer.data['features'][idx]['geometry'] ).bounds
+                return { 'minx': minx, 'miny': miny, 'maxx': maxx, 'maxy': maxy }
+
+            def merge_bounds(bounds_1, bounds_2):
+                minx = bounds_1['minx'] if bounds_1['minx'] < bounds_2['minx'] else bounds_2['minx']
+                miny = bounds_1['miny'] if bounds_1['miny'] < bounds_2['miny'] else bounds_2['miny']
+                maxx = bounds_1['maxx'] if bounds_1['maxx'] > bounds_2['maxx'] else bounds_2['maxx']
+                maxy = bounds_1['maxy'] if bounds_1['maxy'] > bounds_2['maxy'] else bounds_2['maxy']
+                return { 'minx': minx, 'miny': miny, 'maxx': maxx, 'maxy': maxy }
+            
+            bounds_layer = bounds(0)
+            bounds_1 = bounds_layer
+            for idx in range( 1, len( self.layer.data['features'] ) ):
+                bounds_2 = bounds( idx )
+                bounds_layer = merge_bounds( bounds_1, bounds_2 )
+                bounds_1 = bounds_2
+                
+            # 1) Create Polygon Geom from Bounds -> box(), 2) Scale Geom -> scale, 3) Bounds -> .bounds
+            f_scale = 8
+            bound_scale = lambda b: scale( box( b['minx'], b['miny'], b['maxx'], b['maxy'] ), f_scale, f_scale ).bounds
+            ( minx, miny, maxx, maxy ) = bound_scale( bounds_layer )
+            self.map.fit_bounds( [ (miny, minx), (maxy, maxx) ] )
+        
+        if self.load_json:
+            self.load_json = False #  'on_observe_upload' is call twice
+            return
+
+        self.w_message.value = UtilScenes.colorMessage( 'Reading Geojson...', UtilScenes.color_ok )
+        with self.w_output:
+            display( self.w_message )
+
+        # Layer
+        self.load_json = True
+        # First key = Name of file
+        name = next( iter( change.new.keys() ) )
+        # Key 'content' = Binary string with data
+        data = json.loads( change.new[ name ]['content'] )
+        self._clear()
+        args = {
+            'name': name,
+            'data': { k: data[ k ] for k in ( 'type', 'features') },
+            'style': { 'opacity': 0, 'fillOpacity': 0 },
+        }
+        self.layer = GeoJSON( **args )
+        zoom_layer()
+        self.map.add( self.layer )
+        
+        self.w_remove.disabled = False
+        
+        # Fields
+        #self.escape_dropdown = True
+        #items = self.layer.data['features'][0]['properties'].items()
+        #self.w_fields.options = [ k for k, v in items if isinstance( v, str) == True ] # Only string
+        #self.w_fields.value = None
+        #self.w_fields.disabled = False
+        #self.escape_dropdown = False
+        
+        self.w_output.clear_output()
+
+    def on_click_remove(self, btn):
+        self.map.remove( self.layer )
+        self.layer.data.clear()
+        self.layer = None
+        
         btn.disabled = True
 
 
@@ -749,7 +879,9 @@ class ProcessScenes():
         map_.add_control( ScaleControl(position='bottomleft') )
         self.magnifying_control = MagnifyingGlassLayer( map_, 'bottomleft')
         map_.add( LayersControl(position='topright') )
-        self.upload_geojson_control = UploadGeojson( map_, self.control_coordinate, self.w_output_progress )
+        
+        # .) Upload
+        self.upload_geojson_control = UploadGeojson( map_, self.w_output_progress )
         
         #.) Scenes
         self.scenes_valid = ScenesValid( map_, self.control_date )
